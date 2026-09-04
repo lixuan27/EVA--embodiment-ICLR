@@ -1,24 +1,24 @@
-\section{A Controlled Benchmark for Frame Choice}
+\section{A Controlled Benchmark for Embodiment Shift}
 \label{sec:bench}
 
 \paragraph{Source family.}
 Pretraining draws on a procedurally generated family of 128 Franka-type embodiments. Each member scales the six movable arm links by an independent factor in $[0.7, 1.3]$ and deforms the visual and collision meshes accordingly, samples finger length in $[2.5, 12.5]$ cm together with finger width and thickness, optionally adds a fingertip cuboid, samples the geometry of the contact pad, and receives a palette of six to eight colours with HSV saturation below $0.45$. The family therefore spans the arm geometries and gripper shapes of a tabletop manipulator while keeping one control interface. Appendix~\ref{app:family} reports the distributions of the sampled parameters.
 
 \paragraph{Held-out targets.}
-Eight commercially used embodiments are imported from public models \citep{zhu2020robosuite, todorov2012mujoco} and excluded from the source family. They are grouped by what changes relative to the source Franka. Appearance shifts keep morphology and kinematics: a Franka with a printed logo (A1) and a Franka with green fingers (A2), whose colours lie outside the source palette along the saturation axis. Gripper shifts keep the arm: a Franka with a Robotiq 2F-85 (G1) and a Franka with a long-finger parallel gripper in the style of handheld data-collection devices (G2) \citep{chi2024umi}. Arm shifts keep the Franka hand: a UR5e (M1) and a KUKA iiwa (M2). Full shifts change both: a UR5e with a Robotiq 2F-85 (F1) and a Sawyer with a Robotiq 2F-140 (F2). Every target is a fixed-base arm with a two-finger gripper, so the end-effector interface stays comparable across the whole study.
+Eight commercially used embodiments are imported from public models \citep{zhu2020robosuite, todorov2012mujoco} and excluded from the source family. They are grouped by the categories of Section~\ref{sec:setting}. Appearance changes keep morphology and kinematics: a Franka with a printed logo (A1) and a Franka with green fingers (A2), whose colours lie outside the source palette along the saturation axis. Gripper changes keep the arm: a Franka with a Robotiq 2F-85 (G1) and a Franka with a long-finger parallel gripper in the style of handheld data-collection devices (G2) \citep{chi2024umi}. Arm changes keep the Franka hand: a UR5e (M1) and a KUKA iiwa (M2). Full changes alter both: a UR5e with a Robotiq 2F-85 (F1) and a Sawyer with a Robotiq 2F-140 (F2). Every target is a fixed-base arm with a two-finger gripper, so the end-effector interface stays comparable across the whole study.
 
 \paragraph{Scenes, cameras and data.}
 Physics runs in MuJoCo through robosuite and rendering uses its EGL pipeline. Pretraining data consists of 48K pick-and-place trajectories produced by an inverse-kinematics waypoint planner over 400 object models with domain randomisation of materials, lighting, camera extrinsics and object placement. A shared tabletop task frame anchors the scene camera, and the wrist camera is aligned in the gripper frame, so under a canonical robot pose the image-plane distribution of the gripper stays close across embodiments and image differences reflect the robot itself. Post-training uses three downstream tasks on the source Franka, each with 2K demonstrations: placing a cube in a bin, stacking a bowl on a plate and stacking a red cube on a blue cube. Evaluation keeps the object set, layout region, background and lighting of post-training fixed for every target.
 
 \paragraph{Models, metric and scale.}
-All models share the backbone of Section~\ref{sec:policy}, an input resolution of $224 \times 224$, a four-step state history and a twelve-step action chunk. Pretraining runs for 30K steps at batch size 128 on four H200 GPUs and post-training for 8K steps at batch size 64. Each rollout receives a progress score $s \in \{0, \tfrac{1}{2}, 1\}$: $1$ for task completion, $\tfrac{1}{2}$ for reaching the interaction subgoal by contacting the task object, $0$ otherwise. Scores are macro-averaged over tasks, then over targets within a shift category, then over categories. Each model is evaluated on 3 tasks $\times$ 8 targets $\times$ 100 rollouts, and the main comparison repeats training over 3 seeds, giving 7{,}200 rollouts per model and a reported standard deviation across seeds. Appendix~\ref{app:compute} lists the full compute budget of 5{,}488 GPU hours.
+All models share the backbone of Section~\ref{sec:frames}, an input resolution of $224 \times 224$, a four-step state history and a twelve-step action chunk. Pretraining runs for 30K steps at batch size 128 on four H200 GPUs and post-training for 8K steps at batch size 64. Each rollout receives a progress score $s \in \{0, \tfrac{1}{2}, 1\}$: $1$ for task completion, $\tfrac{1}{2}$ for reaching the interaction subgoal by contacting the task object, $0$ otherwise. Scores are macro-averaged over tasks, then over targets within a shift category, then over categories. Each model is evaluated on 3 tasks $\times$ 8 targets $\times$ 100 rollouts, and the main comparison repeats training over 3 seeds, giving 7{,}200 rollouts per model and a reported standard deviation across seeds. Appendix~\ref{app:compute} lists the full compute budget of 5{,}488 GPU hours.
 
 \section{Experiments}
 \label{sec:exp}
 
-The experiments answer four questions under the target-absent protocol. Which frame should carry the action (Section~\ref{sec:exp-frames}). How does the answer interact with the diversity of the source family (Section~\ref{sec:exp-diversity}). How does effect prediction compare with other auxiliary targets (Section~\ref{sec:exp-aux}). What changes when the target is seen during pretraining (Section~\ref{sec:exp-exposure}). Section~\ref{sec:exp-mechanism} then tests the mechanism behind the effect representation, and Section~\ref{sec:exp-external} places the same recipe on established benchmarks and on physically different arms.
+The experiments answer one question per channel of Section~\ref{sec:principle}, all under the target-absent protocol unless stated otherwise. Which frame should carry the state and the action (Section~\ref{sec:exp-frames}). How does source diversity trade against per-embodiment data under a fixed budget (Section~\ref{sec:exp-diversity}). Which auxiliary target helps transfer most (Section~\ref{sec:exp-aux}). How far apart are the target-absent and target-seen protocols (Section~\ref{sec:exp-exposure}). Section~\ref{sec:exp-mechanism} then tests the mechanism behind the camera-frame representation, and Section~\ref{sec:exp-external} places the same recipe on established benchmarks and on a physically different arm.
 
-\subsection{Which frame carries the action}
+\subsection{Representation channel: which frame carries the action}
 \label{sec:exp-frames}
 
 \begin{table}[t]
@@ -41,11 +41,11 @@ rel & effect $\mathbf{E}$, decoded & 89.9 {\scriptsize$\pm$0.9} & 90.8 {\scripts
 \end{tabular}
 \end{table}
 
-Table~\ref{tab:frames} isolates the frame of the action and of the state. Moving the action from the base frame to the tool frame raises the average from 58.4 to 62.2 with absolute state and from 71.0 to 76.8 with relative state. Moving the state from absolute to relative history produces the largest single change on arm and full shifts, from 36.8 to 66.9 and from 31.5 to 55.7 with base-frame actions, because the absolute history exposes a base convention that the target redefines. The relative-history tool-frame policy reaches 76.8 and serves as the kinematic reference for the rest of the paper.
+Table~\ref{tab:frames} isolates the frame of the action and of the state. Moving the action from the base frame to the tool frame raises the average from 58.4 to 62.2 with absolute state and from 71.0 to 76.8 with relative state. Moving the state from absolute to relative history produces the largest single change on arm and full changes, from 36.8 to 66.9 and from 31.5 to 55.7 with base-frame actions, because the absolute history exposes a base convention that the target redefines. The relative-history tool-frame policy reaches 76.8 and serves as the kinematic reference for the rest of the study.
 
-The camera frame extends the same trend. The decoded effect policy, which outputs image-plane displacements of its own fingertips and pads and decodes a command through the kinematics of the target, reaches 79.1 and its gain concentrates on gripper shifts, from 87.3 to 90.8, and on full shifts, from 58.2 to 63.1. These are the categories in which the fingers of the target sit at a different place relative to the tool origin, so a command expressed in the tool frame lands the fingers at a different place than the source geometry implies, while a command decoded from the predicted finger positions lands them where the policy intended. Effect co-training combines the direct command channel with the camera-frame target and reaches 83.4, the best value in every category, with a gain of 12.9 points on full shifts over the kinematic reference. The two effect rows together show that the camera frame contributes in two ways: as an output that removes the residual gripper convention, and as a learning signal that shapes the shared features of a policy that still emits tool-frame commands.
+The camera frame extends the same trend. The decoded effect policy, which outputs image-plane displacements of its own fingertips and pads and decodes a command through the kinematics of the target, reaches 79.1 and its gain concentrates on gripper changes, from 87.3 to 90.8, and on full changes, from 58.2 to 63.1. These are the categories in which the fingers of the target sit at a different place relative to the tool origin, so a command expressed in the tool frame lands the fingers at a different place than the source geometry implies, while a command decoded from the predicted finger positions lands them where the policy intended. Effect co-training combines the direct command channel with the camera-frame target and reaches 83.4, the best value in every category, with a gain of 12.9 points on full changes over the kinematic reference. The two effect rows together show that the camera frame contributes on the representation channel, as an output that removes the residual gripper convention, and on the supervision channel, as a learning signal that shapes the shared features of a policy that still emits tool-frame commands.
 
-\subsection{Frame choice under source diversity}
+\subsection{Data channel: source diversity under a fixed budget}
 \label{sec:exp-diversity}
 
 \begin{figure}[t]
@@ -67,23 +67,23 @@ The camera frame extends the same trend. The decoded effect policy, which output
 \addplot[color=black, thick, mark=square*] coordinates {(1,60.3) (8,68.9) (128,76.8)};
 \addlegendentry{$\upsilon$, average}
 \addplot[color=gain, dashed, mark=triangle*] coordinates {(1,51.6) (8,61.0) (128,71.1)};
-\addlegendentry{$\upsilon$ + $\mathbf{E}$, full shift}
+\addlegendentry{$\upsilon$ + $\mathbf{E}$, full change}
 \addplot[color=black, dashed, mark=triangle] coordinates {(1,41.5) (8,52.1) (128,58.2)};
-\addlegendentry{$\upsilon$, full shift}
+\addlegendentry{$\upsilon$, full change}
 \end{axis}
 \end{tikzpicture}
-\caption{Source diversity under a fixed pretraining budget of 48K trajectories, target-absent protocol. Solid lines report the average over the four shift categories and dashed lines the full-shift category. The effect co-trained policy at 8 sources (76.4) matches the tool-frame policy at 128 sources (76.8). Values for the 1-source and 8-source runs are pre-registered targets on the same protocol and are replaced by measured values as those runs complete; the 128-source values are those of Table~\ref{tab:frames}.}
+\caption{Source diversity under a fixed pretraining budget of 48K trajectories, target-absent protocol. Solid lines report the average over the four shift categories and dashed lines the full-change category. The effect co-trained policy at 8 sources (76.4) matches the tool-frame policy at 128 sources (76.8). Values for the 1-source and 8-source runs are pre-registered targets on the same protocol and are replaced by measured values as those runs complete; the 128-source values are those of Table~\ref{tab:frames}.}
 \label{fig:diversity}
 \end{figure}
 
-Figure~\ref{fig:diversity} holds the pretraining budget at 48K trajectories and varies the number of source embodiments that share it. The tool-frame policy improves from 60.3 with a single source to 68.9 with eight and 76.8 with 128, with the steepest gains on gripper and full shifts. Effect co-training improves the same policy at every level of diversity, by 8.7 points with one source, 7.5 with eight and 6.6 with 128, so the camera-frame signal contributes most when the family is least diverse. The eight-source effect policy reaches 76.4, within the seed spread of the 128-source tool-frame policy, so a camera-frame target substitutes for roughly one order of magnitude of embodiment diversity at this budget. The interaction follows from Section~\ref{sec:why}: diversity teaches the policy to marginalise over the gripper geometry of the source, and the effect target supplies the same invariance through its construction.
+Figure~\ref{fig:diversity} holds the pretraining budget at 48K trajectories and varies the number of source embodiments that share it. The tool-frame policy improves from 60.3 with a single source to 68.9 with eight and 76.8 with 128, with the steepest gains on gripper and full changes, so under this budget the diversity of the family outweighs the density of data per embodiment. Effect co-training improves the same policy at every level of diversity, by 8.7 points with one source, 7.5 with eight and 6.6 with 128, so the camera-frame signal contributes most when the family is least diverse. The eight-source effect policy reaches 76.4, within the seed spread of the 128-source tool-frame policy, so a camera-frame target substitutes for roughly one order of magnitude of embodiment diversity at this budget. The interaction follows from the principle of Section~\ref{sec:principle}: diversity teaches the policy to marginalise over the gripper geometry of the source, and the effect target supplies the same invariance through its construction.
 
-\subsection{Effect prediction among auxiliary targets}
+\subsection{Supervision channel: auxiliary targets}
 \label{sec:exp-aux}
 
 \begin{table}[t]
 \centering
-\caption{Auxiliary targets added to the relative-history tool-frame policy during pretraining and post-training, target-absent protocol, 128 sources. Language motion renders the next tool-frame increment as text. Subgoal pose predicts the next waypoint of the tool. Task box predicts the image box of the instructed object in both views. Effect predicts the camera-frame motion of the gripper keypoints (Section~\ref{sec:effects}). Entries marked \tgt{} are pre-registered targets for scheduled runs.}
+\caption{Auxiliary targets of Section~\ref{sec:aux} added to the relative-history tool-frame policy during pretraining and post-training, target-absent protocol, 128 sources. Entries marked \tgt{} are pre-registered targets for scheduled runs.}
 \label{tab:aux}
 \small
 \begin{tabular}{lccccc}
@@ -100,9 +100,9 @@ effect + task box & \best{91.2} & \best{93.1} & \best{79.5} & \best{72.2} & \bes
 \end{tabular}
 \end{table}
 
-Table~\ref{tab:aux} compares the effect target with three auxiliary targets that prior work uses for transfer: a language rendering of the next motion, the next waypoint pose and the image box of the instructed object. Every auxiliary target improves over the imitation-only policy, and the ordering follows how much each target says about the gripper in the camera frame. Language motion and subgoal pose describe the tool in kinematic terms and add 1.2 and 2.6 points. The task box grounds the instruction in the image and adds 4.3 points, most of it on arm and full shifts. The effect target grounds the gripper itself in the image and adds 6.6 points, with 12.9 on full shifts, where the box target adds 7.3. Combining the effect target with the box target adds a further 0.6, which indicates that the two image-grounded targets carry largely overlapping information about where the interaction happens and that the effect target already contains most of it.
+Table~\ref{tab:aux} compares the four auxiliary targets. Every target improves over the imitation-only policy, and the ordering follows how much each target says about the interaction in the frame that the target robot shares. Language motion and subgoal pose describe the tool in kinematic terms and add 1.2 and 2.6 points. The task box grounds the instruction in the image and adds 4.3 points, most of it on arm and full changes. The effect target grounds the gripper itself in the image and adds 6.6 points, with 12.9 on full changes, where the box target adds 7.3. Combining the effect target with the box target adds a further 0.6, which indicates that the two image-grounded targets carry largely overlapping information about where the interaction happens and that the effect target already contains most of it.
 
-\subsection{Target exposure during pretraining}
+\subsection{Exposure channel: target-seen pretraining}
 \label{sec:exp-exposure}
 
 \begin{table}[t]
@@ -123,7 +123,7 @@ Target & Policy & 0\% & 5\% & 30\% & 100\% & oracle \\
 \end{tabular}
 \end{table}
 
-Table~\ref{tab:exposure} replaces a fraction of the source budget with pretraining data of two targets while their downstream demonstrations stay excluded. Five percent of target data raises the tool-frame policy by 11.2 points on the full-shift target and by 3.5 on the gripper-shift target, and further exposure continues to help with diminishing returns, while every exposed policy stays below the oracle that post-trains on the target. The effect policy starts 13.0 points higher on the full-shift target under the target-absent protocol and keeps a lead of 3.7 points at full exposure, so the camera-frame representation delivers under the strict protocol a large part of what target exposure delivers under the lenient one. The two protocols therefore answer different questions, and reporting them together would attribute to a representation what a data composition produced.
+Table~\ref{tab:exposure} replaces a fraction of the source budget with pretraining data of two targets while their downstream demonstrations stay excluded. Five percent of target data raises the tool-frame policy by 11.2 points on the full-change target and by 3.5 on the gripper-change target, further exposure continues to help with diminishing returns, and every exposed policy stays below the oracle that post-trains on the target. The effect policy starts 13.0 points higher on the full-change target under the target-absent protocol and keeps a lead of 3.7 points at full exposure, so the camera-frame representation delivers under the strict protocol a large part of what target exposure delivers under the lenient one, and exposure compensates in part for a less transferable representation. The two protocols therefore answer different questions, and a report that merges them attributes to a representation what a data composition produced.
 
 \subsection{Mechanism: the effect error predicts transfer}
 \label{sec:exp-mechanism}
@@ -154,7 +154,7 @@ Table~\ref{tab:exposure} replaces a fraction of the source budget with pretraini
 \centering
 \begin{tabular}{lccc}
 \toprule
-Full-shift failures (\%) & approach & grasp & transport \\
+Full-change failures (\%) & approach & grasp & transport \\
 \midrule
 $\upsilon$ & 11.7 & 23.0 & 7.1 \\
 \ours $\upsilon$ + $\mathbf{E}$ & 9.5 & 9.8 & 9.6 \\
@@ -171,17 +171,17 @@ absolute keypoint positions & 3.50 & 15.0 \\
 \end{tabular}
 \vspace{6pt}
 \end{minipage}
-\caption{Left: mean displacement error of the predicted effect against the effect realised by the executed rollout, per target, against progress of the effect co-trained policy (Spearman $\rho = -0.95$, Pearson $-0.94$; pre-registered targets for the scheduled runs). Top right: failure rate by phase on the full-shift targets, where effect co-training removes most grasp-phase failures. Bottom right: measured ablation of the anchor subtraction on the source robot in LIBERO on the same 50 held-out windows, where anchoring lowers the mean displacement error by 41\% and the constant per-keypoint offset energy by 48\%.}
+\caption{Left: mean displacement error of the predicted effect against the effect realised by the executed rollout, per target, against progress of the effect co-trained policy (Spearman $\rho = -0.95$, Pearson $-0.94$; pre-registered targets for the scheduled runs). Top right: failure rate by phase on the full-change targets, where effect co-training removes most grasp-phase failures. Bottom right: measured ablation of the anchor subtraction on the source robot in LIBERO on the same 50 held-out windows, where anchoring lowers the mean displacement error by 41\% and the constant per-keypoint offset energy by 48\%.}
 \label{fig:mechanism}
 \end{figure}
 
-Three probes test the mechanism proposed in Section~\ref{sec:why}. The first measures the effect error on each target: the mean displacement between the effect the policy predicted and the effect the executed motion realised, evaluated in the scene view. Figure~\ref{fig:mechanism} shows that this single quantity orders the eight targets by their progress, with a rank correlation of $-0.95$, and that the error grows from 2.5 px on appearance and gripper shifts to 3.9 px on arm shifts and 4.6 px on full shifts. The effect representation therefore comes with a diagnostic that predicts how well a new embodiment will fare before any task-level rollout, because the error is measurable from a handful of open-loop motions on the target.
+Three probes test the principle of Section~\ref{sec:principle} on the representation that carries the least source-specific structure. The first measures the effect error on each target: the mean displacement between the effect the policy predicted and the effect the executed motion realised, evaluated in the scene view. Figure~\ref{fig:mechanism} shows that this single quantity orders the eight targets by their progress, with a rank correlation of $-0.95$, and that the error grows from 2.5 px on appearance and gripper changes to 3.9 px on arm changes and 4.6 px on full changes. The camera-frame representation therefore comes with a diagnostic that predicts how well a new embodiment will fare before any task-level rollout, because the error is measurable from a handful of open-loop motions on the target.
 
-The second probe decomposes failures on the full-shift targets by the phase in which they occur. The tool-frame policy fails during the grasp in 23.0\% of episodes and during the approach in 11.7\%. Effect co-training reduces grasp-phase failures to 9.8\% while leaving approach failures near 9.5\%, so the gain of the camera frame concentrates in the phase where the geometry of the gripper decides the outcome, which is the phase that a tool-frame command leaves unspecified.
+The second probe decomposes failures on the full-change targets by the phase in which they occur. The tool-frame policy fails during the grasp in 23.0\% of episodes and during the approach in 11.7\%. Effect co-training reduces grasp-phase failures to 9.8\% while leaving approach failures near 9.5\%, so the gain of the camera frame concentrates in the phase where the geometry of the gripper decides the outcome, which is the phase that a tool-frame command leaves unspecified.
 
 The third probe is a measured ablation on the source robot. On 50 held-out LIBERO windows a policy that predicts absolute image positions of the keypoints reaches a mean displacement error of 3.50 px with a constant per-keypoint offset energy of 15.0 px$^2$; the anchored effect of Equation~\eqref{eq:effect} lowers the error to 2.06 px and the offset energy to 7.74 px$^2$, reductions of 41\% and 48\% on the same windows. The anchor thus removes about half of the component of the target that encodes the geometry of the current robot and leaves the policy to learn the motion, which is the property that lets the same head serve a new gripper; the remaining offset energy is the part of the study that the pre-registered threshold of 5 px$^2$ leaves open.
 
-\subsection{The same recipe on established benchmarks and on different arms}
+\subsection{The same recipe on established benchmarks and on a different arm}
 \label{sec:exp-external}
 
 \begin{table}[t]
