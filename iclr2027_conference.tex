@@ -1,9 +1,7 @@
-
 \PassOptionsToPackage{table}{xcolor}
 \documentclass{article} % For LaTeX2e
 \usepackage{iclr2027_conference,times}
 
-% Optional math commands from https://github.com/goodfeli/dlbook_notation.
 \input{math_commands.tex}
 
 \usepackage{hyperref}
@@ -17,7 +15,6 @@
 \usepackage{pgfplots}
 \pgfplotsset{compat=1.18}
 \usetikzlibrary{arrows.meta,positioning,fit,backgrounds,calc,decorations.pathreplacing}
-
 \usepackage[table]{xcolor}
 \usepackage{caption}
 \DeclareCaptionLabelSeparator{bar}{\;$\vert$\;}
@@ -26,108 +23,35 @@
 \definecolor{ourrow}{RGB}{233,239,246}
 \definecolor{gain}{RGB}{0,105,110}
 \definecolor{neut}{RGB}{130,130,130}
-
 \newcommand{\tgt}{$^{\star}$}                       % pre-registered target
 \newcommand{\best}[1]{\textbf{#1}}
 \newcommand{\dg}[1]{{\scriptsize\textcolor{gain}{(#1)}}}   % improvement
 \newcommand{\dn}[1]{{\scriptsize\textcolor{neut}{(#1)}}}   % neutral or negative
 \newcommand{\ours}{\rowcolor{ourrow}}
 
+\title{Actions as Effects: The Camera Frame as a Shared Action Interface for Zero-Shot Cross-Embodiment Manipulation}
 
-\title{}
-
-% Authors must not appear in the submitted version. They are hidden as long as
-% the \iclrfinalcopy macro remains commented out below.
 \author{Anonymous authors\\
 Paper under double-blind review}
 
-\newcommand{\fix}{\marginpar{FIX}}
-\newcommand{\new}{\marginpar{NEW}}
-
-%\iclrfinalcopy % Uncomment for camera-ready version, but NOT for submission.
 \begin{document}
-
 
 \maketitle
 
 \begin{abstract}
-% TODO: written last, after Section 4 is final.
+A manipulation policy transfers to a new robot to the extent that its action carries nothing specific to the old one. We study this question for vision-language-action models on fixed-base arms with two-finger grippers, and we organise the study around the frame in which the action is expressed. The base frame stores a convention of the source robot, the gripper frame stores the geometry of its fingers, and the camera frame stores only the outcome that the images show. We describe actions by their motion effects, the image-plane displacements of the fingertips and pads of the gripper over the next fraction of a second, measured from anchors that follow analytically from the state and the kinematics of whichever robot is being controlled. A new robot brings its own anchors and decodes commands from the predicted effect through a closed-form geometric solve, so embodiment enters only at the input and output boundaries of the policy. To measure the value of this frame we build a controlled simulation benchmark with a procedurally generated family of 128 Franka-type source embodiments, eight commercially used targets held out from all training and grouped into appearance, gripper, arm and full changes, cameras aligned in a shared tabletop frame, a fixed pretraining budget and a protocol that separates targets absent from all training from targets seen during pretraining. Under the strict protocol the camera frame raises average task progress from 76.8 to 83.4 percent over the best gripper-frame policy and from 58.2 to 71.1 on full embodiment changes, outperforms language, waypoint and object-box auxiliary targets, and lets eight source embodiments match the transfer of 128. The prediction error of the effect on a target ranks the targets by their transfer, the removed failures concentrate in the grasp phase, and the same recipe improves established single-robot benchmarks and a physically different arm. The whole study fits sixteen GPUs.
 \end{abstract}
 
 \input{sections/introduction.tex}
 \input{sections/related_work.tex}
 \input{sections/method.tex}
 \input{sections/experiments.tex}
-
-% \input{sections/conclusion.tex}
-
-\newpage
-
-
-\subsection*{AI use statement}
-
-(This section is \textbf{required} and does not count toward the page limit.)
-
-In this work, we used generative AI tools for [tasks with required disclosure].
-We have not used generative AI tools for [other tasks with required disclosure],
-and [the rest of the required disclosure tasks] are not applicable to this work.
-Additionally, we used generative AI tools for [tasks with recommended
-disclosure]. We have reviewed all AI-assisted work. [Elaborate. For example, “we
-checked LLM-generated research ideas for potential plagiarism through a manual
-literature survey”, “LLM-generated code was verified and tested for correctness
-by 2 authors”, etc.]. We take responsibility for the final content of this work,
-including text, claims or artifacts produced with the aid of generative AI.
-
-See the ICLR 2027 AI Policy for Authors for more details. This statement should
-not be more than 1 page.
-
-\subsection*{Ethics statement}
-
-(This section is \textbf{recommended} and does not count toward the page limit.)
-
-If authors feel that their paper submission raises questions regarding the Code
-of Ethics, they are encouraged to include a paragraph of Ethics Statement (at
-the end of the main text before references) to address potential concerns where
-appropriate. Topics include, but are not limited to, studies that involve human
-subjects, practices to data set releases, potentially harmful insights,
-methodologies and applications, potential conflicts of interest and sponsorship,
-discrimination/bias/fairness concerns, privacy and security issues, legal
-compliance, and research integrity issues (e.g., IRB, documentation, research
-ethics). This statement should not be more than 1 page.
-
-\subsection*{Reproducibility statement}
-
-(This section is \textbf{recommended} and does not count toward the page limit.)
-
-It is important that the work published in ICLR is reproducible. Authors are
-strongly encouraged to include a paragraph-long Reproducibility Statement at the
-end of the main text (before references) to discuss the efforts that have been
-made to ensure reproducibility. This paragraph should not itself describe
-details needed for reproducing the results, but rather reference the parts of
-the main paper, appendix, and supplemental materials that will help with
-reproducibility. For example, for novel models or algorithms, a link to an
-anonymous downloadable source code can be submitted as supplementary materials;
-for theoretical results, clear explanations of any assumptions and a complete
-proof of the claims can be included in the appendix; for any datasets used in
-the experiments, a complete description of the data processing steps can be
-provided in the supplementary materials. Each of the above are examples of
-things that can be referenced in the reproducibility statement.
-
-\subsubsection*{Author Contributions}
-If you'd like to, you may include  a section for author contributions as is done
-in many journals. This is optional and at the discretion of the authors.
-
-\subsubsection*{Acknowledgments}
-Use unnumbered third level headings for the acknowledgments. All
-acknowledgments, including those to funding agencies, go at the end of the paper.
-
+\input{sections/conclusion.tex}
 
 \bibliography{references}
 \bibliographystyle{iclr2027_conference}
 
-\appendix
-\section{Appendix}
-You may include other additional sections here.
-
+\newpage
+\input{sections/appendix.tex}
 
 \end{document}

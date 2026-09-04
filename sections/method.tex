@@ -1,0 +1,92 @@
+\section{Actions in a Hierarchy of Frames}
+\label{sec:method}
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[
+  node distance=4mm and 6mm,
+  box/.style={draw, rounded corners=2pt, align=center, font=\scriptsize, inner sep=3pt, minimum height=8mm},
+  frame/.style={box, fill=gray!8, minimum width=27mm},
+  ourbox/.style={box, fill=ourrow, minimum width=27mm},
+  arr/.style={-{Stealth[length=2mm]}, thick},
+]
+\node[frame] (base) {base frame\\increment $\beta_t$ of $\mathrm{vec}(T_t)$};
+\node[frame, right=of base] (tool) {tool frame\\increment $\upsilon_t = \mathrm{vec}(T_t^{-1}T_{t+1})$};
+\node[ourbox, right=of tool] (cam) {camera frame\\effect $\epsilon_t^{(k,c)} = \Pi_c^t(T_{t+\tau}\kappa_e^{(k)}) - \alpha_t^{(k,c)}$};
+\node[box, below=9mm of base, fill=white] (conv) {exposes the base\\convention of the source};
+\node[box, below=9mm of tool, fill=white] (geom) {exposes the finger\\geometry of the source};
+\node[box, below=9mm of cam, fill=white] (out) {exposes the outcome\\shared by every robot};
+\draw[arr] (base) -- (conv);
+\draw[arr] (tool) -- (geom);
+\draw[arr] (cam) -- (out);
+\node[box, below=9mm of geom, fill=white, minimum width=60mm] (pol) {policy $v_\theta(\,\cdot \mid o_t, s_t, \alpha_t)$: images, relative tool history, anchors\\joint flow matching over commands and effects, mask $w_t$};
+\node[box, left=of pol, fill=white, align=center] (anc) {anchor $\alpha_t = \Pi_c^t(T_t\kappa_e)$\\from kinematics of the\\robot in hand};
+\node[box, right=of pol, fill=white, align=center] (dec) {decode $\hat T_{t+\tau}$ from $\hat{\mathbf{E}}_t$\\by the least squares\\of Eq.~\eqref{eq:decode}};
+\draw[arr] (anc) -- (pol);
+\draw[arr] (pol) -- (dec);
+\draw[arr] (out) -- (pol);
+\end{tikzpicture}
+\caption{The same tool motion in three frames and what each frame exposes to the policy. Motion effects live in the camera frame; the anchors bring in the kinematics of the robot at the input, and the decoder brings them in at the output, so the learned mapping stays free of source conventions.}
+\label{fig:overview}
+\end{figure}
+
+\subsection{Setting and transfer protocols}
+\label{sec:setting}
+
+An embodiment $e$ is a fixed-base arm with a two-finger gripper. Its configuration at time $t$ is the joint vector $q_t$ together with the gripper aperture $g_t$, and its forward kinematics $T_e$ maps $q_t$ to the tool pose $T_t = T_e(q_t) \in SE(3)$ expressed in the robot base frame $\mathcal{B}_e$. A demonstration on $e$ is a sequence of observations $o_t = (I^{\mathrm{s}}_t, I^{\mathrm{w}}_t, \ell)$, where $I^{\mathrm{s}}_t$ is the scene image, $I^{\mathrm{w}}_t$ is the wrist image and $\ell$ is the language instruction, paired with the motion of the tool. We write $\mathcal{D}(\mathcal{E}, \mathcal{T})$ for the demonstrations of a set of embodiments $\mathcal{E}$ on a set of tasks $\mathcal{T}$.
+
+A policy is trained in two stages. Pretraining uses $\mathcal{D}(\mathcal{E}_{\mathrm{pre}}, \mathcal{T}_{\mathrm{pre}})$ over a source family $\mathcal{E}_{\mathrm{pre}}$. Post-training uses $\mathcal{D}(\{e_{\mathrm{s}}\}, \mathcal{T}_{\mathrm{post}})$ on a single source robot $e_{\mathrm{s}}$ with $\mathcal{T}_{\mathrm{pre}} \cap \mathcal{T}_{\mathrm{post}} = \varnothing$. Evaluation places the policy on a target embodiment $e_{\mathrm{h}} \neq e_{\mathrm{s}}$ for the same downstream tasks $\mathcal{T}_{\mathrm{post}}$. Two protocols differ in one condition. Under the \emph{target-absent} protocol the target satisfies $e_{\mathrm{h}} \notin \mathcal{E}_{\mathrm{pre}}$, so every parameter of the policy was fitted on other robots. Under the \emph{target-seen} protocol the target satisfies $e_{\mathrm{h}} \in \mathcal{E}_{\mathrm{pre}}$ while its downstream demonstrations stay excluded from all training. Section~\ref{sec:exp-exposure} shows that the two protocols measure different quantities, and the paper reports them separately throughout. Our headline claims concern the target-absent protocol.
+
+\subsection{Three frames for the same motion}
+\label{sec:frames}
+
+The same physical motion of the tool admits three descriptions that differ only in the frame that carries it. The base-frame increment
+\begin{equation}
+\beta_t = \mathrm{vec}(T_{t+1}) - \mathrm{vec}(T_t), \qquad \mathrm{vec}(T) = [\,p,\ \mathrm{Euler}(R)\,] \in \mathbb{R}^6,
+\end{equation}
+measures the motion against $\mathcal{B}_e$, which each manufacturer places differently and which a target robot redefines. The tool-frame increment
+\begin{equation}
+\upsilon_t = \mathrm{vec}\!\left(T_t^{-1}\,T_{t+1}\right)
+\end{equation}
+measures the motion against the gripper itself, a frame that every two-finger robot carries in the same place relative to its fingers. The proprioceptive state is treated with the same choice: the absolute history $s^{\mathrm{abs}}_t = \{\mathrm{vec}(T_{t-i})\}_{i=0}^{h}$ exposes the base frame to the policy, and the relative history $s^{\mathrm{rel}}_t = \{\mathrm{vec}(T_t^{-1}T_{t-i})\}_{i=0}^{h}$ exposes only recent motion of the tool. The aperture $g$ is appended to every variant. The wrist camera moves rigidly with the gripper, so tool-frame quantities align with the motion the wrist image shows, and Section~\ref{sec:exp-frames} confirms that this alignment already accounts for a large share of transfer.
+
+The tool frame still hides one fact from the policy. A new gripper places its fingertips at a different position relative to the tool origin, so the same $\upsilon_t$ produces a different contact outcome on the target. The third description moves the action into the camera frame, the single frame that every embodiment in the study shares by construction, and expresses it through the motion of the gripper itself as seen in the images.
+
+\subsection{Motion effects as camera-frame actions}
+\label{sec:effects}
+
+Each gripper carries a set of $K$ keypoints $\kappa_e = \{\kappa_e^{(k)}\}_{k=1}^{K}$ fixed in its tool frame: the two fingertips, the four pad corners and the palm centre, so $K = 7$. Their positions follow from the tool pose, $x_t^{(k)} = T_t\,\kappa_e^{(k)}$. Camera $c \in \{\mathrm{s}, \mathrm{w}\}$ projects world points with $\Pi_c^{t}$, where the superscript records that the wrist camera pose depends on $t$. The \emph{anchor} of keypoint $k$ in camera $c$ is its current image position
+\begin{equation}
+\alpha_t^{(k,c)} = \Pi_c^{t}\!\left(T_t\,\kappa_e^{(k)}\right),
+\label{eq:anchor}
+\end{equation}
+an analytic function of the state and the known kinematics of whichever robot is being controlled. The \emph{motion effect} over a horizon $H$ is the displacement of every keypoint from its anchor, projected through the camera pose held at time $t$:
+\begin{equation}
+\epsilon_t^{(k,c)}(\tau) = \Pi_c^{t}\!\left(T_{t+\tau}\,\kappa_e^{(k)}\right) - \alpha_t^{(k,c)}, \qquad \tau = 1,\dots,H .
+\label{eq:effect}
+\end{equation}
+The effect tensor $\mathbf{E}_t \in \mathbb{R}^{H \times K \times 2 \times 2}$ collects the displacements of all keypoints in both cameras, and a visibility mask $m_t \in \{0,1\}^{K \times 2}$ marks keypoints that fall inside the image and in front of the camera. Three properties make $\mathbf{E}_t$ a cross-embodiment action. Its units are pixels of a camera whose placement is matched across robots, so its scale is shared. Its semantics are the outcome of the action in the world, so a target with longer fingers produces the same effect for a successful grasp while requiring a different $\upsilon_t$. Its origin is subtracted analytically, so the policy learns a displacement field in place of an absolute position that would encode the new geometry of the target; Section~\ref{sec:exp-mechanism} quantifies how much of the prediction error this subtraction removes.
+
+The keypoints of a new target come from its gripper model, and the anchors come from its forward kinematics, so the representation absorbs the geometry of the target at the input and output boundaries and leaves the learned mapping itself free of embodiment identity. This is the sense in which the camera frame is a shared interface: the policy predicts what its fingers will do in the image, and the kinematics of the robot at hand translate that prediction into a command.
+
+\subsection{One policy, three readouts}
+\label{sec:policy}
+
+All representations are trained with the same backbone, a vision-language model with a separate action expert coupled through attention \citep{pi2025pi05, black2024pi0}, and the same conditional flow matching objective \citep{lipman2023flow}. Let $z_t$ denote the target sequence of a representation over a chunk of $H = 12$ steps. For the base-frame and tool-frame representations $z_t = (\beta_{t:t+H}, g_{t:t+H})$ or $z_t = (\upsilon_{t:t+H}, g_{t:t+H})$. For the effect representation $z_t = (\mathbf{E}_t, g_{t:t+H})$. For effect co-training $z_t = (\upsilon_{t:t+H}, g_{t:t+H}, \mathbf{E}_t)$, and the two parts share the action expert and its attention over the observation. A noise level $\lambda \sim \mathrm{Beta}(1.5, 1)$ and Gaussian noise $\eta$ define the interpolant $z_t^{\lambda} = \lambda\,\eta + (1-\lambda)\,z_t$, and the network $v_\theta$ regresses the velocity with a mask that suppresses invisible keypoints:
+\begin{equation}
+\mathcal{L}(\theta) = \mathbb{E}\Big[\, \big\| w_t \odot \big(v_\theta(z_t^{\lambda}, \lambda \mid o_t, s_t, \alpha_t) - (\eta - z_t)\big) \big\|^2 \,\Big],
+\label{eq:loss}
+\end{equation}
+where $w_t$ equals one on command channels and equals $m_t$ broadcast over the horizon on effect channels. The anchors $\alpha_t$ enter as clean conditioning tokens placed after the noisy target tokens, so the expert reads the current image positions of the keypoints before it predicts where they move. The effect head is initialised at zero, which keeps the command channels at the accuracy of the plain policy at the start of training and lets the effect channels grow from the shared features.
+
+At inference the policy samples $\hat z_t$ by integrating the learned velocity field from noise over ten Euler steps. The tool-frame representation executes $\hat\upsilon_{t:t+H}$ directly through an operational-space controller. Effect co-training executes the same command channels and treats $\hat{\mathbf{E}}_t$ as a learned regulariser that shapes the shared features. The effect representation omits the command channel and decodes one from the predicted image motion. For each future step $\tau$ the decoded pose is the least-squares solution
+\begin{equation}
+\hat T_{t+\tau} = \arg\min_{T \in SE(3)} \sum_{k,c} m_t^{(k,c)} \,\Big\| \Pi_c^{t}\!\left(T\,\kappa_{e}^{(k)}\right) - \alpha_t^{(k,c)} - \hat\epsilon_t^{(k,c)}(\tau) \Big\|^2 ,
+\label{eq:decode}
+\end{equation}
+a perspective-$n$-point problem with fourteen correspondences at most, initialised at $T_t$ and solved with three Gauss-Newton iterations in under a millisecond. The command follows as $\hat\upsilon_{t+\tau-1} = \mathrm{vec}(\hat T_{t+\tau-1}^{-1}\hat T_{t+\tau})$, and the aperture channel is executed as predicted. Equation~\eqref{eq:decode} uses the keypoints and camera of the robot being controlled, so a target with a new gripper receives commands that realise the predicted effect with its own fingers.
+
+\subsection{Why the camera frame transfers}
+\label{sec:why}
+
+The three frames form a hierarchy of what the representation exposes to the policy. The base frame exposes a convention of the source robot that the target redefines. The tool frame removes that convention while still exposing the metric of the source gripper, because a command of one centimetre closes a different fraction of the gap between the fingers of a new gripper. The camera frame exposes only what the images show, and the images are the one channel that the target and the source share exactly under matched camera placement. Motion effects therefore carry the smallest amount of source-specific structure of the three, and every remaining dependence on the source lives in analytic components that the target replaces with its own kinematics. The experiments test this reading in three ways: by comparing the frames under a fixed data budget, by measuring how the effect error on a target predicts its task progress, and by checking that the anchor subtraction accounts for the constant part of the error.

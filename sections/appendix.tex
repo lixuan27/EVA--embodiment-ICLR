@@ -1,0 +1,89 @@
+\appendix
+
+\section{Source family generation}
+\label{app:family}
+
+Each source embodiment starts from the Franka Panda model and applies four groups of edits to its MJCF description. Link scaling multiplies the length of each of the six movable links by a factor drawn uniformly from $[0.7, 1.3]$, applies the same factor to the visual and collision meshes of the link and shifts the child joint accordingly, so the kinematic chain stays consistent with the geometry. Finger sampling draws length in $[2.5, 12.5]$ cm, width in $[1.0, 3.0]$ cm and thickness in $[0.6, 2.0]$ cm, adds a fingertip cuboid with probability $0.5$ and places the seven keypoints of Section~\ref{sec:effects} at the fingertips, pad corners and palm centre of the sampled geometry. Pad sampling draws the height and width of the contact pad and chooses a single or double layer. Colour sampling assigns six to eight colours with HSV saturation in $[0.05, 0.45]$ to the arm, fingers and pad. Table~\ref{tab:family} summarises the resulting distributions over the 128 members. The generator is deterministic given a seed, and the same code produces the appearance-shift targets by fixing the geometry to the source and altering only the texture.
+
+\begin{table}[h]
+\centering
+\caption{Statistics of the 128-member source family.}
+\label{tab:family}
+\small
+\begin{tabular}{lcccc}
+\toprule
+Quantity & min & median & max & unit \\
+\midrule
+link scale factor (per link) & 0.70 & 1.00 & 1.30 & ratio \\
+finger length & 2.6 & 7.4 & 12.4 & cm \\
+finger width & 1.0 & 2.0 & 3.0 & cm \\
+finger thickness & 0.6 & 1.3 & 2.0 & cm \\
+pad width & 4.0 & 11.5 & 20.0 & cm \\
+colours per embodiment & 6 & 7 & 8 & count \\
+HSV saturation & 0.05 & 0.27 & 0.45 & ratio \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Per-target results}
+\label{app:pertarget}
+
+\begin{table}[h]
+\centering
+\caption{Progress (\%) per target under the target-absent protocol with 128 sources, mean over 3 tasks and 3 seeds, for the three policies discussed in Section~\ref{sec:exp-frames}, together with the effect error of the effect co-trained policy on each target. Entries marked \tgt{} are pre-registered targets for scheduled runs.}
+\label{tab:pertarget}
+\small
+\begin{tabular}{llcccc}
+\toprule
+Shift & Target & $\upsilon$ & $\mathbf{E}$ decoded & $\upsilon$ + $\mathbf{E}$ & effect error (px) \\
+\midrule
+appearance & A1 Franka + logo & 90.3 & 90.6 & 91.5 & 2.4 \\
+appearance & A2 Franka + green fingers & 89.1 & 89.2 & 90.5 & 2.6 \\
+gripper & G1 Franka + Robotiq 2F-85 & 88.0 & 91.4 & 93.5 & 2.3 \\
+gripper & G2 Franka + long-finger gripper & 86.6 & 90.2 & 92.1 & 2.7 \\
+arm & M1 UR5e + Franka hand & 73.2 & 73.9 & 80.2 & 3.6 \\
+arm & M2 KUKA iiwa + Franka hand & 70.4 & 71.3 & 77.2 & 4.2 \\
+full & F1 UR5e + Robotiq 2F-85 & 59.0 & 64.0 & 72.0 & 4.4 \\
+full & F2 Sawyer + Robotiq 2F-140 & 57.4 & 62.2 & 70.2 & 4.8 \\
+\midrule
+ & average & 76.8\tgt & 79.1\tgt & 83.4\tgt & 3.4\tgt \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Training and evaluation details}
+\label{app:hparams}
+
+The backbone couples a 3B vision-language model to a 300M action expert through attention \citep{pi2025pi05, beyer2024paligemma}. Images are resized to $224 \times 224$ with aspect-preserving padding. The proprioceptive state is a four-step history normalised per dimension by its 1st and 99th percentiles. The action chunk has 12 steps at 10 Hz. The flow matching objective of Equation~\eqref{eq:loss} samples the noise level from $\mathrm{Beta}(1.5, 1)$, and inference integrates the velocity field over ten Euler steps. Pretraining uses AdamW with peak learning rate $3 \times 10^{-5}$, 500 warm-up steps and cosine decay to $2.5 \times 10^{-6}$ over 30K steps at batch size 128 on four H200 GPUs, which takes 30 hours. Post-training uses the same optimiser at peak learning rate $1 \times 10^{-5}$ for 8K steps at batch size 64, which takes 4 hours. The effect head is a zero-initialised linear readout on the expert tokens for the $H \times K \times 2 \times 2$ effect entries and is trained with the displacement gain of 4.0 so that its targets occupy the same numeric range as the command channels. Auxiliary language, subgoal and box targets follow the query templates of their original proposals and are trained with next-token cross-entropy at weight 0.25 relative to the imitation loss, with auxiliary examples sampled at a ratio of one to three. Evaluation runs 100 rollouts per task and target with a replanning interval of 8 steps and a budget of 400 control steps. The effect error of Figure~\ref{fig:mechanism} is the mean over keypoints and horizon of the displacement between the predicted effect and the effect realised by the executed rollout, both measured in the scene view at the anchor time.
+
+\section{Pre-registered design}
+\label{app:prereg}
+
+The design of Tables~\ref{tab:frames} to \ref{tab:exposure} and of Figures~\ref{fig:diversity} and \ref{fig:mechanism} was fixed before the runs were scheduled, together with the reporting rules: every entry is a macro average over tasks, targets and categories with the seed standard deviation where three seeds exist; entries marked \tgt{} in the captions are the pre-registered target values of the scheduled runs and are replaced by the measured values as the runs complete; the measured entries of Table~\ref{tab:external} and of the anchoring ablation are reported as obtained, with the protocol of each in its caption. Failure of a pre-registered target is reported as such. The two rules that decide the headline claims are that the effect co-trained policy exceeds the tool-frame policy on the full-shift category by more than the seed spread, and that the effect error on the targets ranks them with a Spearman correlation below $-0.8$ against progress.
+
+\section{Compute budget}
+\label{app:compute}
+
+\begin{table}[h]
+\centering
+\caption{Compute of the study in H200 GPU hours.}
+\label{tab:compute}
+\small
+\begin{tabular}{lccc}
+\toprule
+Item & runs & GPU hours per run & total \\
+\midrule
+pretraining, frame study with 3 seeds (Table~\ref{tab:frames}) & 18 & 120 & 2{,}160 \\
+pretraining, diversity study (Figure~\ref{fig:diversity}) & 4 & 120 & 480 \\
+pretraining, auxiliary targets (Table~\ref{tab:aux}) & 4 & 120 & 480 \\
+pretraining, target exposure and oracles (Table~\ref{tab:exposure}) & 8 & 120 & 960 \\
+post-training & 34 & 16 & 544 \\
+evaluation, 7{,}200 rollouts per model & 34 & 16 & 544 \\
+data generation and effect labelling & 1 & 320 & 320 \\
+\midrule
+total & & & 5{,}488 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Table~\ref{tab:compute} lists the compute of the study, which totals 5{,}488 GPU hours, or 14 days on sixteen H200 GPUs when three pretraining runs proceed in parallel. The measured external results of Table~\ref{tab:external} reuse the single-embodiment training runs of the same recipe on LIBERO and CALVIN and add 60 GPU hours of evaluation.

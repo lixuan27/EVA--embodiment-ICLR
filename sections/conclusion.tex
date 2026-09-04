@@ -1,0 +1,13 @@
+\section{Discussion and Conclusion}
+\label{sec:conclusion}
+
+The frame that carries an action determines how much of the source robot a policy memorises. The base frame stores a convention, the gripper frame stores a geometry, and the camera frame stores an outcome. Under a protocol that keeps the target robot away from all training, the camera frame transfers best, its benefit grows as the source family shrinks, and its prediction error on a new robot forecasts how well that robot will do. These findings hold for fixed-base arms with two-finger grippers in tabletop manipulation with matched cameras, which is the regime the benchmark was built to isolate. Grippers with more fingers, mobile bases and long-horizon tasks change the set of keypoints, the camera alignment and the horizon of the effect, and extending the representation to them is the natural next step. The measured results on established benchmarks and on a physically different arm show that the recipe transfers beyond the controlled setting, and the size of the gain there tracks how closely the cameras and anchors of the deployment match those of training. We therefore recommend three practices for cross-embodiment evaluation: report whether the target was seen during pretraining, express the action in a frame the target shares, and measure the effect error on the target before spending task rollouts on it.
+
+\subsection*{AI use statement}
+Generative AI tools assisted with code refactoring, log analysis, literature search and language editing of this manuscript. All experimental designs, protocols, analyses and claims were specified and verified by the authors. AI-generated code was reviewed and tested by the authors before use. We take responsibility for the final content of this work.
+
+\subsection*{Ethics statement}
+This work uses simulated robots and publicly released robot demonstration datasets, and all data are free of personal information. The methods aim at reusable manipulation policies and carry the general risks of autonomous robot control, which we mitigate through evaluation in simulation before deployment.
+
+\subsection*{Reproducibility statement}
+Section~\ref{sec:method} specifies the representations, the objective and the decoder; Section~\ref{sec:bench} specifies the benchmark; Appendix~\ref{app:family} lists the generator of the source family, Appendix~\ref{app:hparams} the training and evaluation hyperparameters, Appendix~\ref{app:prereg} the pre-registered design and Appendix~\ref{app:compute} the compute budget. The embodiment generator, the benchmark scenes, the training configurations and the evaluation scripts are released with the paper.
